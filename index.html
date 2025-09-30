@@ -30,6 +30,10 @@
       background: var(--green-dark);
       overflow-x: hidden;
     }
+    
+    body.fade-in {
+      animation: fadeIn 1s ease-in-out;
+    }
 
     h1, h2, h3 {
       font-family: 'Playfair Display', serif;
@@ -89,6 +93,15 @@
       width: 100%;
     }
 
+    .main-nav a.active {
+      color: var(--white);
+      transform: translateY(-2px);
+    }
+
+    .main-nav a.active::after {
+      width: 100%;
+    }
+
     /* Hero Section */
     .hero {
       height: 100vh;
@@ -98,6 +111,7 @@
       align-items: center;
       text-align: center;
       position: relative;
+      background-attachment: fixed; /* Creates a nice parallax effect on scroll */
       overflow: hidden;
     }
 
@@ -286,6 +300,35 @@
       0%, 100% { transform: scale(1); }
       50% { transform: scale(1.05); }
     }
+
+    /* Petal Animation */
+    .petal {
+      position: absolute;
+      top: -10%;
+      background-color: rgba(255, 255, 255, 0.8);
+      width: 10px;
+      height: 15px;
+      border-radius: 0 50% 0 50%;
+      animation-name: fall, sway;
+      animation-timing-function: linear, ease-in-out;
+      animation-iteration-count: infinite, infinite;
+      animation-play-state: running, running;
+      pointer-events: none;
+      z-index: 2;
+    }
+
+    @keyframes fall {
+      100% {
+        top: 110%;
+      }
+    }
+
+    @keyframes sway {
+      0%, 100% { transform: translateX(0) rotate(0); }
+      25% { transform: translateX(20px) rotate(-30deg); }
+      50% { transform: translateX(-20px) rotate(45deg); }
+      75% { transform: translateX(15px) rotate(-15deg); }
+    }
   </style>
 
   <!-- AOS (Animate On Scroll) Library -->
@@ -305,6 +348,7 @@
   </nav>
 
   <header class="hero" id="home">
+    <div id="petals-container"></div>
     <div class="hero-content" data-aos="fade-up" data-aos-duration="1200">
       <h1>Fritz & Joana</h1>
       <h2>We're Getting Married!</h2>
@@ -399,6 +443,7 @@
   <script src="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.js"></script>
   <script>
     AOS.init({
+      // Global settings for AOS:
       once: true,
       duration: 1000,
       easing: 'ease-in-out',
@@ -411,19 +456,25 @@
     const minutesEl = document.getElementById("minutes");
     const secondsEl = document.getElementById("seconds");
 
-    setInterval(() => {
+    const countdownInterval = setInterval(() => {
       const now = new Date().getTime();
       const distance = targetDate - now;
+
+      if (distance < 0) {
+        clearInterval(countdownInterval);
+        document.getElementById("countdown").innerHTML = "The day is here!";
+        return;
+      }
 
       const days = Math.floor(distance / (1000 * 60 * 60 * 24));
       const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
       const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
       const seconds = Math.floor((distance % (1000 * 60)) / 1000);
 
-      daysEl.textContent = days;
-      hoursEl.textContent = hours;
-      minutesEl.textContent = minutes;
-      secondsEl.textContent = seconds;
+      daysEl.textContent = String(days).padStart(2, '0');
+      hoursEl.textContent = String(hours).padStart(2, '0');
+      minutesEl.textContent = String(minutes).padStart(2, '0');
+      secondsEl.textContent = String(seconds).padStart(2, '0');
     }, 1000);
 
     // Change nav style on scroll
@@ -436,16 +487,63 @@
       }
     });
 
-    // Smooth navigation
-    document.querySelectorAll('.main-nav a').forEach(link => {
-      link.addEventListener('click', e => {
-        e.preventDefault();
-        const targetId = link.getAttribute('href');
-        const target = document.querySelector(targetId);
-        if (target) {
-          target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    // Active nav link on scroll (Scroll Spy)
+    const sections = document.querySelectorAll("section[id], header[id]");
+    const navLinks = document.querySelectorAll(".main-nav a");
+
+    const observerOptions = {
+      root: null,
+      rootMargin: '0px',
+      threshold: 0.5 // 50% of the section must be visible
+    };
+
+    const observer = new IntersectionObserver((entries, observer) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          const id = entry.target.getAttribute('id');
+          navLinks.forEach(link => {
+            link.classList.remove('active');
+            if (link.getAttribute('href') === `#${id}`) {
+              link.classList.add('active');
+            }
+          });
         }
       });
+    }, observerOptions);
+
+    sections.forEach(section => {
+      observer.observe(section);
+    });
+
+    // Add a class to body after a short delay for a fade-in effect
+    document.addEventListener('DOMContentLoaded', () => {
+      // Set home as active initially
+      const homeLink = document.querySelector('.main-nav a[href="#home"]');
+      if(homeLink) homeLink.classList.add('active');
+
+      // Trigger page fade-in
+      document.body.classList.add('fade-in');
+
+      // Create falling petals
+      const petalsContainer = document.getElementById('petals-container');
+      if (petalsContainer) {
+        const numberOfPetals = 30;
+        for (let i = 0; i < numberOfPetals; i++) {
+          const petal = document.createElement('div');
+          petal.className = 'petal';
+          
+          // Randomize properties for a natural look
+          petal.style.left = `${Math.random() * 100}vw`;
+          petal.style.animationDuration = `${Math.random() * 5 + 8}s, ${Math.random() * 3 + 4}s`; // fall duration, sway duration
+          petal.style.animationDelay = `${Math.random() * 8}s, ${Math.random() * 4}s`;
+          
+          const scale = Math.random() * 0.8 + 0.5;
+          petal.style.transform = `scale(${scale})`;
+          petal.style.opacity = scale; // smaller petals are more transparent
+
+          petalsContainer.appendChild(petal);
+        }
+      }
     });
   </script>
 </body>
